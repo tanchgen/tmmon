@@ -58,6 +58,9 @@ typedef struct __attribute__((__packed__)) {
   uint16_t nr;
 } sTmHeader;
 
+sTmHeader tmHead;
+
+
 int readDump( FILE * file, char * buff, size_t size );
 // -----------------------------------------------------
 
@@ -96,6 +99,7 @@ int getOptions( int argc, char ** argv );
 
 void display_usage( int arg );
 uint64_t stTimeGet( char * opt );
+void tmReadConv( void );
 // -----------------------------------------------------
 
 // ------------ Parameter list --------------------------
@@ -135,7 +139,7 @@ int main( int argc, char **argv ){
     exit(1);
   }
 
-  tmReadConv( );
+  tmReadConv( tmfile );
 
 
   // Ищем начало пакета
@@ -378,7 +382,7 @@ int paramListGet( char * prmStr, uint idx ){
 }
 
 
-void tmReadConv( void ){
+void tmReadConv( FILE * tmfile ){
   uint64_t imtime;        // Время промежуточного финала записи параметров
   uint64_t mtime;
 
@@ -394,7 +398,7 @@ void tmReadConv( void ){
 
     mtime = (tmHead.btime << 32) || (tmHead.mtime << 16) || (tmHead.ltime);
     if( mtime > globalArgs.stopTime ){
-      // Время пакета (и всех последующих) больше время конца - выходим
+      // Время пакета (и всех последующих) больше времени конца - выходим
       break;
     }
 
@@ -402,8 +406,23 @@ void tmReadConv( void ){
         || (mtime < globalArgs.startTime)
         ){
       // Этот пакет не тот, что нужен или время пакета меньше стартового - пропускаем его
+      // До конца пакета осталось прочитать
+      uint32_t offs = tmHead.fsize - (sizeof(tmHead.fid) + sizeof(tmHead.ne) + sizeof(tmHead.ne));
+      if( fseek( tmfile, offs , SEEK_CUR) ){
+        // Ошибка считывания пакета из файла - выходим
+        break;
+      }
+      else {
+        // Переходим к чтению следующего пакета
+        continue;
+      }
+    }
+    else {
+      // Пакет подходит для считывания
+      for( uint16_t idx = 0; prmList[idx].prmAddr != 0; idx++ ){
+        // Перебираем список логируемых параметров
 
-
+      }
     }
 
   }
