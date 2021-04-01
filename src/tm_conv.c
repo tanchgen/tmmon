@@ -103,10 +103,7 @@ void tmReadConv( void );
 // -----------------------------------------------------
 
 // ------------ Parameter list --------------------------
-struct {
-  char prmName[50];
-  int prmAddr;
-} prmList[100];
+sPrmList prmList[100];
 
 int paramListGet( char * prmStr, uint idx );
 // -----------------------------------------------------
@@ -330,6 +327,11 @@ int getOptions( int argc, char ** argv ){
             globalArgs.outDirName, globalArgs.fid, globalArgs.group,
             globalArgs.startTime, globalArgs.stopTime);
 
+  // Сортировка параметров
+  shell_sort( prmList, prmIndex );
+  // Фиксируем конец списка параметров
+  prmList[prmIndex].prmAddr = 0;
+
   return 0;
 }
 
@@ -408,7 +410,7 @@ void tmReadConv( FILE * tmfile ){
       // Этот пакет не тот, что нужен или время пакета меньше стартового - пропускаем его
       // До конца пакета осталось прочитать
       uint32_t offs = tmHead.fsize - (sizeof(tmHead.fid) + sizeof(tmHead.ne) + sizeof(tmHead.ne));
-      if( fseek( tmfile, offs , SEEK_CUR) ){
+      if( fseek( tmfile, offs, SEEK_CUR) ){
         // Ошибка считывания пакета из файла - выходим
         break;
       }
@@ -421,7 +423,15 @@ void tmReadConv( FILE * tmfile ){
       // Пакет подходит для считывания
       for( uint16_t idx = 0; prmList[idx].prmAddr != 0; idx++ ){
         // Перебираем список логируемых параметров
-
+        if( fseek( tmfile, prmList[idx].prmAddr, SEEK_CUR) ){
+          // Ошибка считывания пакета из файла - выходим
+          break;
+        }
+        else {
+          uint16_t val;
+          fread( &val, sizeof(uint16_t), 1, tmfile );
+          prmInsert( val, mtime, idx );
+        }
       }
     }
 
@@ -456,3 +466,18 @@ void display_usage( int arg ){
 
   exit(arg);
 }
+
+void shell_sort( struct prm * sprm, int size){
+    for(int s=size/2; s>0; s/=2){
+        for(int i=0; i<size; i++){
+            for(int j=i+s; j<size; j+=s){
+                if(sprm[i].prmAddr > sprm[j].prmAddr){
+                    struct prm temp = sprm[j];
+                    sprm[j] = sprm[i];
+                    sprm[i] = temp;
+                }
+            }
+        }
+    }
+}
+
