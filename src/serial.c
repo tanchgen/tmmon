@@ -119,7 +119,7 @@ int spRead( void ){
 
   char rxBuffer[256];   /* Buffer to store the data received              */
   char * pRxBuf = rxBuffer;
-  int size;
+  int size = 0;
   int slen;
 
   while (size >= 0) {
