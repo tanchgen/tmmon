@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <sys/stat.h>
 
 #include "tm_save.h"
 
@@ -134,6 +135,8 @@ int spRead( void ){
   char * pRxBuf = rxBuffer;
   int size = 0;
   int slen;
+  char * drname;
+  struct stat st;
 
   while (size >= 0) {
     struct tm * stm;
@@ -146,8 +149,23 @@ int spRead( void ){
     }
     pRxBuf++;
     slen = 1;
+
+    // Получаем время
+    tme = time( NULL );
+    stm = gmtime( &tme );
+    // Создаем директорию
+    strcpy( drname, globalArgs.outDirName );
+    strftime( (drname + strlen(drname)), 18, "%y.%m.%d", stm );
+    strcat( drname, "/" );
+    if( stat(drname, &st) == -1) {
+
+      if( rek_mkdir(drname) ){
+        return -2;
+      }
+    }
+
     // Открываем файл для записи
-    strcpy( fullFname, globalArgs.outDirName );
+    strcpy( fullFname, drname );
     strcat( fullFname, globalArgs.filePrefix );
     tme = time( NULL );
     stm = gmtime( &tme );
