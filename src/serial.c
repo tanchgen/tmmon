@@ -208,7 +208,7 @@ int rek_mkdir(char *path) {
         rek_mkdir(path);
         *sep = '/';
     }
-    if(mkdir(path, 0777) && errno != EEXIST){
+    if(strlen(path) && (mkdir(path, 0777) && errno != EEXIST) ){
       fprintf(stderr, "error while trying to create '%s'\n%m\n", path);
       return -1;
     }
