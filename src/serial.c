@@ -28,8 +28,6 @@ char serDn[256];
 int serfd;/*Serial device file Descriptor*/
 int outfd;/* Out file descriptor*/
 char fullFname[256];
-int serOpenFlag = 0;
-
 
 
 int serialInit( char * spname ){
@@ -48,18 +46,10 @@ int serialInit( char * spname ){
 	  }
 	   if(serfd < 0) {           /* Error Checking */
 		 puts(" Wait to opening serial device");
-		 serOpenFlag = 1;
 		 sleep(1);
 	   }
 	}
-   if ( serOpenFlag == 0 ){
-	 puts( "Waiting for to be unpluged the device from USB" );
-     sleep(1);
-	 return -1;
-   }
-   else {
      printf("%s Opened Successfull\n ", spname );
-   }
 
   /*---------- Setting the Attributes of the serial port using termios structure --------- */
 
@@ -159,7 +149,9 @@ int spRead( void ){
           /* Open in blocking mode,read will wait              */
 
     if( outfd < 0 ) {           /* Error Checking */
-      perror("Opening output file");
+      char tmpb[1024];
+      sprintf(tmpb, "\"%s\" - Opening output file", fullFname );
+      perror( tmpb );
       return -2;
     }
     printf("%s Opened Successfully -> ", fullFname );
@@ -167,6 +159,9 @@ int spRead( void ){
     // Читаем построчно, пока не прочитаем пустую строку
     do {
       if( (size = serialRead( pRxBuf, '\n' )) < 0 ){
+    	if( outfd ){
+          close( outfd );
+    	}
         break;
       }
       slen += size;
@@ -179,6 +174,9 @@ int spRead( void ){
     } while( size > 1 );
     if( size < 0 ){
       // Ошибка чтения последовательного порта
+      if( outfd ){
+		close( outfd );
+	  }
       break;
     }
     else {
