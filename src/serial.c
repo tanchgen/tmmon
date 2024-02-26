@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <sys/stat.h>
 
 #include "tm_save.h"
 
@@ -28,9 +29,8 @@ char serDn[256];
 int serfd;/*Serial device file Descriptor*/
 int outfd;/* Out file descriptor*/
 char fullFname[256];
-int serOpenFlag = 0;
 
-
+int rek_mkdir(char *path);
 
 int serialInit( char * spname ){
   struct termios SerialPortSettings;  /* Create the structure */
@@ -39,27 +39,19 @@ int serialInit( char * spname ){
 
   /* Change /dev/ttyUSB0 to the one corresponding to your system */
   for( serfd = 0; serfd <= 0; ){
-	  for( uint devnum = 0; (devnum < 5) && (serfd <= 0); devnum++ ){
-		sprintf( serDn, "%s%d", spname, devnum );
-		serfd = open( serDn, O_RDWR | O_NOCTTY);  /* ttyACM is the STM CDC device */
+    for( uint devnum = 0; (devnum < 5) && (serfd <= 0); devnum++ ){
+    	sprintf( serDn, "%s%d", spname, devnum );
+      serfd = open( serDn, O_RDWR | O_NOCTTY);  /* ttyACM is the STM CDC device */
 			  /* O_RDWR   - Read/Write access to serial port       */
 			/* O_NOCTTY - No terminal will control the process   */
 			/* Open in blocking mode,read will wait              */
 	  }
-	   if(serfd < 0) {           /* Error Checking */
-		 puts(" Wait to opening serial device");
-		 serOpenFlag = 1;
-		 sleep(1);
-	   }
-	}
-   if ( serOpenFlag == 0 ){
-	 puts( "Waiting for to be unpluged the device from USB" );
-     sleep(1);
-	 return -1;
+    if(serfd < 0) {           /* Error Checking */
+    	puts(" Wait to opening serial device");
+    	sleep(1);
+    }
    }
-   else {
-     printf("%s Opened Successfull\n ", spname );
-   }
+   printf("%s Opened Successfull\n ", spname );
 
   /*---------- Setting the Attributes of the serial port using termios structure --------- */
 
@@ -134,6 +126,8 @@ int spRead( void ){
   char * pRxBuf = rxBuffer;
   int size = 0;
   int slen;
+  char drname[1024];
+  struct stat st;
 
   while (size >= 0) {
     struct tm * stm;
@@ -146,12 +140,25 @@ int spRead( void ){
     }
     pRxBuf++;
     slen = 1;
-    // Открываем файл для записи
-    strcpy( fullFname, globalArgs.outDirName );
-    strcat( fullFname, globalArgs.filePrefix );
+
+    // Получаем время
     tme = time( NULL );
     stm = gmtime( &tme );
-    strftime( (fullFname + strlen(fullFname)), 18, "%y.%m.%d-%H:%M:%S", stm );
+    // Создаем директорию
+    strcpy( drname, globalArgs.outDirName );
+    strftime( (drname + strlen(drname)), 18, "%y.%m.%d", stm );
+    strcat( drname, "/" );
+    if( stat(drname, &st) == -1) {
+
+      if( rek_mkdir(drname) ){
+        return -2;
+      }
+    }
+
+    // Открываем файл для записи
+    strcpy( fullFname, drname );
+    strcat( fullFname, globalArgs.filePrefix );
+    strftime( (fullFname + strlen(fullFname)), 18, "%y.%m.%d-%H%M%S", stm );
     strcat( fullFname, fileSuffix );
 
     outfd = open( fullFname, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
@@ -171,6 +178,7 @@ int spRead( void ){
       }
       slen += size;
       if( write( outfd, rxBuffer, slen ) != slen ){
+        close( outfd );
         perror("Output file writing fault");
         return -2;
       }
@@ -179,6 +187,7 @@ int spRead( void ){
     } while( size > 1 );
     if( size < 0 ){
       // Ошибка чтения последовательного порта
+      close( outfd );
       break;
     }
     else {
@@ -191,3 +200,17 @@ int spRead( void ){
   return size;
 }
 
+
+int rek_mkdir(char *path) {
+    char *sep = strrchr(path, '/');
+    if(sep != NULL) {
+        *sep = 0;
+        rek_mkdir(path);
+        *sep = '/';
+    }
+    if(strlen(path) && (mkdir(path, 0777) && errno != EEXIST) ){
+      fprintf(stderr, "error while trying to create '%s'\n%m\n", path);
+      return -1;
+    }
+    return 0;
+}
