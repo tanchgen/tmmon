@@ -158,7 +158,7 @@ int spRead( void ){
     // Открываем файл для записи
     strcpy( fullFname, drname );
     strcat( fullFname, globalArgs.filePrefix );
-    strftime( (fullFname + strlen(fullFname)), 18, "%y.%m.%d-%H:%M:%S", stm );
+    strftime( (fullFname + strlen(fullFname)), 18, "%y.%m.%d-%H%M%S", stm );
     strcat( fullFname, fileSuffix );
 
     outfd = open( fullFname, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
